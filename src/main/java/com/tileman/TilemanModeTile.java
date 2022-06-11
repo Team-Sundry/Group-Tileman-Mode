@@ -25,16 +25,82 @@
  */
 package com.tileman;
 
-import lombok.Value;
+import lombok.Getter;
+import net.runelite.api.World;
+import net.runelite.api.coords.WorldPoint;
+
+import java.awt.*;
 
 /**
  * Used for serialization of ground marker points.
  */
-@Value
+
 class TilemanModeTile
 {
-	private int regionId;
-	private int regionX;
-	private int regionY;
-	private int z;
+	//Flags
+	public static final int TILE_REMOTE = 0b1;
+	public static final int TILE_FROM_OTHER = 0b10;
+
+	@Getter
+	private final WorldPoint point;
+	@Getter
+	private final int flags;
+	@Getter
+	private final byte player;
+
+
+	public TilemanModeTile(int regionId, int regionX, int regionY, int z, byte player, int flags)
+	{
+		this.point = WorldPoint.fromRegion(regionId, regionX, regionY, z);
+		this.flags = flags;
+		this.player = player;
+	}
+
+	public int getRegionId() {
+		return point.getRegionID();
+	}
+
+	public int getRegionX() {
+		return point.getRegionX();
+	}
+
+	public int getRegionY() {
+		return point.getRegionY();
+	}
+
+	public int getZ()
+	{
+		return point.getPlane();
+	}
+
+	@Override
+	public boolean equals(Object o)
+	{
+		TilemanModeTile t = (TilemanModeTile) o;
+		return point.equals(t.point);
+	}
+
+	public Color getColor()
+	{
+		return getColor(player);
+	}
+
+	public static Color getColor(byte player)
+	{
+		++player;
+		int r =  (player << 7) & 0b10000000+
+				((player << 3) & 0b01000000) +
+				((player >> 2) & 0b00100000);
+		int g = ((player << 6) & 0b10000000) +
+				((player << 2) & 0b01000000) +
+				((player >> 1) & 0b00100000);
+		int b = ((player << 5) & 0b10000000) +
+				((player << 1) & 0b01000000);
+
+		r = 0b11110000 - r;
+		g = 0b11110000 - g;
+		b = 0b11110000 - b;
+
+		return new Color(r, g, b);
+	}
 }

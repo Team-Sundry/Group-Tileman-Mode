@@ -28,15 +28,17 @@ public class TilemanPluginPanel extends PluginPanel {
     private final TilemanModePlugin plugin;
     private final TilemanProfileManager profileManager;
     private final Client client;
+    private final TilemanNetwork networkManager;
 
     private boolean showExportInfo = false;
     private boolean gameModeOpen = false;
     private boolean advancedOpen = false;
 
-    public TilemanPluginPanel(TilemanModePlugin plugin, Client client, TilemanProfileManager profileManager) {
+    public TilemanPluginPanel(TilemanModePlugin plugin, Client client, TilemanProfileManager profileManager, TilemanNetwork network) {
         this.plugin = plugin;
         this.client = client;
         this.profileManager = profileManager;
+        this.networkManager = network;
         build();
     }
 
@@ -78,6 +80,7 @@ public class TilemanPluginPanel extends PluginPanel {
             bodyPanel.add(buildProfilePanel());
             bodyPanel.add(buildGameRulesPanel());
             bodyPanel.add(buildAdvancedOptionsPanel());
+            bodyPanel.add(buildGroupOptionsPanel());
 
             this.add(bodyPanel, BorderLayout.CENTER);
         }
@@ -163,7 +166,10 @@ public class TilemanPluginPanel extends PluginPanel {
 
                     JComboBox gameModeSelect = new JComboBox(TilemanGameMode.values());
                     gameModeSelect.setSelectedItem(profileManager.getGameMode());
-                    gameModeSelect.addActionListener(l -> profileManager.setGameMode((TilemanGameMode) gameModeSelect.getSelectedItem()));
+                    gameModeSelect.addActionListener(l -> {
+                        profileManager.setGameMode((TilemanGameMode) gameModeSelect.getSelectedItem());
+                        rebuild();
+                    });
 
                     gameModeDropdownPanel.add(gameModeSelectLabel);
                     gameModeDropdownPanel.add(gameModeSelect);
@@ -236,6 +242,7 @@ public class TilemanPluginPanel extends PluginPanel {
         }
 
         callbacks.forEach(func -> func.run());
+
         return gameRulesPanel;
     }
 
@@ -286,6 +293,74 @@ public class TilemanPluginPanel extends PluginPanel {
             });
         }
         return advancedOptions;
+    }
+
+    private JPanel buildGroupOptionsPanel() {
+        TilemanProfile activeProfile = profileManager.getActiveProfile();
+        if(profileManager.getGameMode() != TilemanGameMode.GROUP || activeProfile.equals(TilemanProfile.NONE))
+            return new JPanel();
+
+        JPanel groupOptionsPanel = new JPanel();
+        groupOptionsPanel.setBorder(BorderFactory.createLineBorder(Color.black));
+
+        {
+            groupOptionsPanel.setBackground(ColorScheme.DARK_GRAY_COLOR);
+            addVerticalLayout(groupOptionsPanel);
+
+            JPanel urlPanel = new JPanel();
+            addVerticalLayout(urlPanel);
+            addSpacer(urlPanel);
+            JLabel urlLabel = new JLabel("Group URL");
+            urlLabel.setAlignmentX(CENTER_ALIGNMENT);
+            urlPanel.add(urlLabel);
+            addSpacer(urlPanel);
+            JTextField urlTextField = new JTextField(20);
+            urlTextField.setBackground(new Color(0x222222));
+            urlTextField.setText(profileManager.getGroupServerURL());
+            urlPanel.add(urlTextField);
+            groupOptionsPanel.add(urlPanel);
+
+            JButton connectButton = new JButton("Connect");
+            connectButton.setAlignmentX(CENTER_ALIGNMENT);
+
+            if(networkManager.isConnected())
+            {
+                connectButton.setText("Disconnect");
+                urlTextField.setEnabled(false);
+                urlTextField.setText(networkManager.getAddress());
+            }
+
+            connectButton.addActionListener(l -> {
+                if(!networkManager.isConnected()) {
+                    connectButton.setText("Working...");
+                    connectButton.setEnabled(false);
+                    urlTextField.setEnabled(false);
+                    profileManager.setGroupServerURL(urlTextField.getText());
+                    plugin.clearTiles();
+
+                    if (networkManager.connect(urlTextField.getText(), client.getAccountHash())) {
+                        connectButton.setText("Disconnect");
+                        connectButton.setEnabled(true);
+                        urlTextField.setBackground(new Color(0x222222));
+                    } else {
+                        connectButton.setText("Connect");
+                        connectButton.setEnabled(true);
+                        urlTextField.setEnabled(true);
+                        urlTextField.setBackground(new Color(0x903000));
+                    }
+                }
+                else {
+                    networkManager.disconnect();
+                    connectButton.setText("Connect");
+                    connectButton.setEnabled(true);
+                    urlTextField.setEnabled(true);
+                }
+            });
+
+            groupOptionsPanel.add(connectButton);
+        }
+
+        return groupOptionsPanel;
     }
 
     private void showProfileImportPanel() {
